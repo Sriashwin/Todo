@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Minimal Todo"
+rootProject.name = "Day-to-Do"
 
 include(":app")

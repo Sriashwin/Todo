@@ -1,5 +1,5 @@
 {
-  "name": "Minimal Todo",
+  "name": "Day-to-Do",
   "description": "A fast, offline-first minimalist todo app with categorised targets, habit streak tracking and private vault.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
