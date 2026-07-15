@@ -6,11 +6,15 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -78,7 +82,11 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+            Column(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .statusBarsPadding()
+            ) {
                 // Main Header Title
                 Row(
                     modifier = Modifier
@@ -153,20 +161,23 @@ fun HomeScreen(
                 )
 
                 // Category Chips Selector
-                Row(
+                LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 12.dp)
                         .background(Color.Transparent),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FilterChip(
-                        selected = categoryFilterId == null,
-                        onClick = { viewModel.setCategoryFilter(null) },
-                        label = { Text("All Categories") }
-                    )
-                    categories.take(5).forEach { category ->
+                    item {
+                        FilterChip(
+                            selected = categoryFilterId == null,
+                            onClick = { viewModel.setCategoryFilter(null) },
+                            label = { Text("All Categories") }
+                        )
+                    }
+                    items(categories.size) { index ->
+                        val category = categories[index]
                         FilterChip(
                             selected = categoryFilterId == category.id,
                             onClick = { viewModel.setCategoryFilter(category.id) },
@@ -648,7 +659,9 @@ fun EditTaskDialog(
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
@@ -668,15 +681,18 @@ fun EditTaskDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Category", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         AssistChip(
                             onClick = { categoryId = null },
                             label = { Text("None") },
-                            leadingIcon = { if (categoryId == null) Icon(Icons.Default.Check, contentDescription = null) }
+                            leadingIcon = { if (categoryId == null) Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         )
-                        categories.take(3).forEach { cat ->
+                        categories.forEach { cat ->
                             FilterChip(
                                 selected = categoryId == cat.id,
                                 onClick = { categoryId = cat.id },
@@ -689,10 +705,13 @@ fun EditTaskDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Section", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf("mini" to "Mini", "daily" to "Daily", "target" to "Target").forEach { (value, label) ->
+                        listOf("mini" to "Mini Today", "daily" to "Daily Habit", "target" to "Long Target").forEach { (value, label) ->
                             FilterChip(
                                 selected = section == value,
                                 onClick = { section = if (section == value) null else value },

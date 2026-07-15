@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
@@ -119,10 +120,12 @@ fun QuickAddDialog(
                         fontWeight = FontWeight.SemiBold
                     )
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val activeCategory = categories.find { it.id == selectedCategoryId }
                         AssistChip(
                             onClick = { selectedCategoryId = null },
                             label = { Text("None") },
@@ -132,7 +135,7 @@ fun QuickAddDialog(
                                 }
                             }
                         )
-                        categories.take(3).forEach { category ->
+                        categories.forEach { category ->
                             FilterChip(
                                 selected = selectedCategoryId == category.id,
                                 onClick = { selectedCategoryId = category.id },
@@ -151,8 +154,11 @@ fun QuickAddDialog(
                         fontWeight = FontWeight.SemiBold
                     )
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         listOf(
                             "mini" to "Mini Today",

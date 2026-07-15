@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,7 +86,11 @@ fun CompletedScreen(
 
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+            Column(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .statusBarsPadding()
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -134,19 +139,23 @@ fun CompletedScreen(
                 )
 
                 // Category Filter Row
-                Row(
+                LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                        .background(Color.Transparent),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FilterChip(
-                        selected = selectedCategoryId == null,
-                        onClick = { selectedCategoryId = null },
-                        label = { Text("All Topics") }
-                    )
-                    categories.take(5).forEach { category ->
+                    item {
+                        FilterChip(
+                            selected = selectedCategoryId == null,
+                            onClick = { selectedCategoryId = null },
+                            label = { Text("All Topics") }
+                        )
+                    }
+                    items(categories.size) { index ->
+                        val category = categories[index]
                         FilterChip(
                             selected = selectedCategoryId == category.id,
                             onClick = { selectedCategoryId = category.id },
