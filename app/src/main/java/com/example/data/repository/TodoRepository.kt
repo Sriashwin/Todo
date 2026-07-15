@@ -33,6 +33,10 @@ class TodoRepository(
         return categoryDao.insertCategory(Category(name = name))
     }
 
+    suspend fun updateCategory(category: Category) {
+        categoryDao.updateCategory(category)
+    }
+
     suspend fun deleteCategory(category: Category) {
         categoryDao.deleteCategory(category)
     }
@@ -112,7 +116,7 @@ class TodoRepository(
     }
 
     suspend fun resetDailyTasks() {
-        taskDao.resetDailyTasks()
+        taskDao.performDailyReset()
     }
 
     private fun isToday(timestamp: Long): Boolean {

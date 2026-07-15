@@ -35,6 +35,7 @@ fun PrivateFolderScreen(
     onOpenQuickAddPrivate: () -> Unit
 ) {
     val isVaultUnlocked by viewModel.isVaultUnlocked.collectAsState()
+    val allTasks by viewModel.allTasks.collectAsState()
     val savedPin = remember { viewModel.getSavedPin() }
 
     var inputPin by remember { mutableStateOf("") }
@@ -319,6 +320,7 @@ fun PrivateFolderScreen(
                             tasksInList = privateTasks,
                             isReorderMode = false,
                             categories = categories,
+                            allTasks = allTasks,
                             onToggleComplete = { viewModel.toggleTaskCompletion(task) },
                             onEdit = { },
                             onMoveUp = { },

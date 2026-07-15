@@ -33,6 +33,15 @@ interface TaskDao {
     @Delete
     suspend fun deleteTask(task: Task)
 
+    @Transaction
+    suspend fun performDailyReset() {
+        resetDailyTasks()
+        archiveCompletedMiniTasks()
+    }
+
     @Query("UPDATE tasks SET isCompleted = 0, completedAt = NULL WHERE section = 'daily'")
     suspend fun resetDailyTasks()
+
+    @Query("UPDATE tasks SET section = NULL, showOnHome = 0 WHERE section = 'mini' AND isCompleted = 1")
+    suspend fun archiveCompletedMiniTasks()
 }

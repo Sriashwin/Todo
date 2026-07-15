@@ -122,7 +122,10 @@ class TodoViewModel(application: Application) : AndroidViewModel(application) {
         showOnHome: Boolean,
         isPrivate: Boolean,
         isStarred: Boolean,
-        notes: String
+        notes: String,
+        linkedTargetId: Int? = null,
+        isPassiveTarget: Boolean = false,
+        targetTimeframe: String? = null
     ) {
         viewModelScope.launch {
             val maxOrder = allTasks.value.maxOfOrNull { it.displayOrder } ?: 0
@@ -134,7 +137,10 @@ class TodoViewModel(application: Application) : AndroidViewModel(application) {
                 isPrivate = isPrivate,
                 isStarred = isStarred,
                 notes = notes,
-                displayOrder = maxOrder + 1
+                displayOrder = maxOrder + 1,
+                linkedTargetId = linkedTargetId,
+                isPassiveTarget = isPassiveTarget,
+                targetTimeframe = targetTimeframe
             )
             repository.insertTask(task)
         }
@@ -167,6 +173,29 @@ class TodoViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             if (name.isNotBlank()) {
                 repository.insertCategory(name)
+            }
+        }
+    }
+
+    fun toggleCategoryVisibility(category: Category) {
+        viewModelScope.launch {
+            repository.updateCategory(category.copy(isHidden = !category.isHidden))
+        }
+    }
+
+    fun updateCategory(category: Category) {
+        viewModelScope.launch {
+            repository.updateCategory(category)
+        }
+    }
+
+    fun updateCategoryDefaultSection(category: Category, defaultSection: String?) {
+        viewModelScope.launch {
+            repository.updateCategory(category.copy(defaultSection = defaultSection))
+            if (defaultSection != null) {
+                allTasks.value.filter { it.categoryId == category.id && !it.isPrivate }.forEach { task ->
+                    repository.updateTask(task.copy(section = defaultSection, showOnHome = true))
+                }
             }
         }
     }

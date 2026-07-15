@@ -13,7 +13,7 @@ import com.example.data.model.CompletionHistory
 
 @Database(
     entities = [Category::class, Task::class, CompletionHistory::class],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

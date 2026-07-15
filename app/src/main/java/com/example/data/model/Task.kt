@@ -18,5 +18,8 @@ data class Task(
     val completedAt: Long? = null,
     val completedOrder: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val linkedTargetId: Int? = null,
+    val isPassiveTarget: Boolean = false,
+    val targetTimeframe: String? = null
 )

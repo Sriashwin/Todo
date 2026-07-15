@@ -3,6 +3,7 @@ package com.example
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -54,6 +55,14 @@ fun AppMainContainer() {
     val history by viewModel.completionHistory.collectAsStateWithLifecycle()
     val selectedCategoryId by viewModel.selectedCategoryId.collectAsStateWithLifecycle()
     val selectedSection by viewModel.selectedSection.collectAsStateWithLifecycle()
+
+    val isSystemBackEnabled = currentScreen != "home"
+    BackHandler(enabled = isSystemBackEnabled) {
+        when (currentScreen) {
+            "category_detail", "private" -> viewModel.navigateTo("categories")
+            "categories", "completed", "settings" -> viewModel.navigateTo("home")
+        }
+    }
 
     var showQuickAddDialog by remember { mutableStateOf(false) }
     var forceSectionInQuickAdd by remember { mutableStateOf<String?>(null) }
@@ -178,6 +187,9 @@ fun AppMainContainer() {
         QuickAddDialog(
             viewModel = viewModel,
             categories = categories,
+            initialCategoryId = forceCategoryInQuickAdd,
+            initialSection = forceSectionInQuickAdd,
+            initialPrivate = forcePrivateInQuickAdd,
             onDismiss = { showQuickAddDialog = false }
         )
     }
@@ -255,6 +267,7 @@ fun CategoryDetailScreen(
                         tasksInList = categoryTasks,
                         isReorderMode = false,
                         categories = categories,
+                        allTasks = tasks,
                         onToggleComplete = { viewModel.toggleTaskCompletion(task) },
                         onEdit = { },
                         onMoveUp = { },

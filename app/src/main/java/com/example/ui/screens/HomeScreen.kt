@@ -58,6 +58,7 @@ fun HomeScreen(
     var miniExpanded by remember { mutableStateOf(true) }
     var dailyExpanded by remember { mutableStateOf(true) }
     var targetExpanded by remember { mutableStateOf(true) }
+    var inboxExpanded by remember { mutableStateOf(true) }
 
     // Filter tasks based on settings
     val filteredTasks = tasks.filter { task ->
@@ -65,8 +66,18 @@ fun HomeScreen(
                             task.notes.contains(searchQuery, ignoreCase = true)
         val matchesCategory = categoryFilterId == null || task.categoryId == categoryFilterId
         val matchesPrivacy = !task.isPrivate
-        val matchesVisibility = task.showOnHome || searchQuery.isNotBlank() // show hidden if searching
-        val matchesCompletion = !task.isCompleted || showCompletedInHome
+        
+        val isCategoryHidden = task.categoryId?.let { catId ->
+            categories.find { it.id == catId }?.isHidden == true
+        } ?: false
+        val matchesCategoryVisibility = categoryFilterId != null || !isCategoryHidden
+
+        val matchesVisibility = (task.showOnHome && matchesCategoryVisibility) || searchQuery.isNotBlank() // show hidden if searching
+        val matchesCompletion = if (task.section == "daily" || task.section == "target") {
+            true
+        } else {
+            !task.isCompleted || showCompletedInHome
+        }
 
         matchesSearch && matchesCategory && matchesPrivacy && matchesVisibility && matchesCompletion
     }
@@ -74,6 +85,7 @@ fun HomeScreen(
     val miniTasks = filteredTasks.filter { it.section == "mini" }
     val dailyTasks = filteredTasks.filter { it.section == "daily" }
     val targetTasks = filteredTasks.filter { it.section == "target" }
+    val inboxTasks = filteredTasks.filter { it.section == null || it.section == "none" || it.section == "" }
 
     // Analytics computation
     val totalHomeTasks = tasks.filter { !it.isPrivate && it.showOnHome }.size
@@ -278,6 +290,34 @@ fun HomeScreen(
                 }
             }
 
+            // SECTION: UNSORTED INBOX
+            if (inboxTasks.isNotEmpty()) {
+                item {
+                    SectionHeader(
+                        title = "Inbox (Unsorted / Unscheduled)",
+                        count = inboxTasks.size,
+                        expanded = inboxExpanded,
+                        onToggle = { inboxExpanded = !inboxExpanded }
+                    )
+                }
+                if (inboxExpanded) {
+                    itemsIndexed(inboxTasks) { index, task ->
+                        TaskListItem(
+                            task = task,
+                            index = index,
+                            tasksInList = inboxTasks,
+                            isReorderMode = isReorderMode,
+                            categories = categories,
+                            allTasks = tasks,
+                            onToggleComplete = { viewModel.toggleTaskCompletion(task) },
+                            onEdit = { activeTaskToEdit = task },
+                            onMoveUp = { viewModel.moveTaskUp(inboxTasks, index) },
+                            onMoveDown = { viewModel.moveTaskDown(inboxTasks, index) }
+                        )
+                    }
+                }
+            }
+
             // SECTION 1: MINI TARGETS
             item {
                 SectionHeader(
@@ -298,6 +338,7 @@ fun HomeScreen(
                             tasksInList = miniTasks,
                             isReorderMode = isReorderMode,
                             categories = categories,
+                            allTasks = tasks,
                             onToggleComplete = { viewModel.toggleTaskCompletion(task) },
                             onEdit = { activeTaskToEdit = task },
                             onMoveUp = { viewModel.moveTaskUp(miniTasks, index) },
@@ -327,6 +368,7 @@ fun HomeScreen(
                             tasksInList = dailyTasks,
                             isReorderMode = isReorderMode,
                             categories = categories,
+                            allTasks = tasks,
                             onToggleComplete = { viewModel.toggleTaskCompletion(task) },
                             onEdit = { activeTaskToEdit = task },
                             onMoveUp = { viewModel.moveTaskUp(dailyTasks, index) },
@@ -356,6 +398,7 @@ fun HomeScreen(
                             tasksInList = targetTasks,
                             isReorderMode = isReorderMode,
                             categories = categories,
+                            allTasks = tasks,
                             onToggleComplete = { viewModel.toggleTaskCompletion(task) },
                             onEdit = { activeTaskToEdit = task },
                             onMoveUp = { viewModel.moveTaskUp(targetTasks, index) },
@@ -376,6 +419,7 @@ fun HomeScreen(
         EditTaskDialog(
             task = activeTaskToEdit!!,
             categories = categories,
+            tasks = tasks,
             onDismiss = { activeTaskToEdit = null },
             onSave = { updated ->
                 viewModel.updateTask(updated)
@@ -471,6 +515,7 @@ fun TaskListItem(
     tasksInList: List<Task>,
     isReorderMode: Boolean,
     categories: List<Category>,
+    allTasks: List<Task> = emptyList(),
     onToggleComplete: () -> Unit,
     onEdit: () -> Unit,
     onMoveUp: () -> Unit,
@@ -570,7 +615,13 @@ fun TaskListItem(
                     }
                 }
 
-                if (category != null || task.notes.isNotBlank()) {
+                val linkedTargetName = remember(task.linkedTargetId, allTasks) {
+                    task.linkedTargetId?.let { targetId ->
+                        allTasks.find { it.id == targetId }?.title
+                    }
+                }
+
+                if (category != null || task.notes.isNotBlank() || linkedTargetName != null || task.section == "target") {
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -591,6 +642,35 @@ fun TaskListItem(
                                 contentDescription = "Has notes",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.size(12.dp)
+                            )
+                        }
+                        if (linkedTargetName != null) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "🎯 Linked: $linkedTargetName",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        if (task.section == "target") {
+                            val timeframeLabel = when (task.targetTimeframe) {
+                                "week" -> "This Week"
+                                "month" -> "This Month"
+                                "year" -> "This Year"
+                                else -> "General"
+                            }
+                            val typeLabel = if (task.isPassiveTarget) "Passive" else "Active"
+                            Text(
+                                text = "[$typeLabel • $timeframeLabel]",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
@@ -635,10 +715,12 @@ fun TaskListItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditTaskDialog(
     task: Task,
     categories: List<Category>,
+    tasks: List<Task>,
     onDismiss: () -> Unit,
     onSave: (Task) -> Unit,
     onDelete: (Task) -> Unit
@@ -647,9 +729,30 @@ fun EditTaskDialog(
     var notes by remember { mutableStateOf(task.notes) }
     var categoryId by remember { mutableStateOf(task.categoryId) }
     var section by remember { mutableStateOf(task.section) }
-    var showOnHome by remember { mutableStateOf(task.showOnHome) }
-    var isPrivate by remember { mutableStateOf(task.isPrivate) }
     var isStarred by remember { mutableStateOf(task.isStarred) }
+
+    // 3-way visibility option
+    var taskType by remember {
+        mutableStateOf(
+            when {
+                task.isPrivate -> "private"
+                !task.showOnHome -> "hidden"
+                else -> "public"
+            }
+        )
+    }
+
+    // Target configuration fields
+    var isPassiveTarget by remember { mutableStateOf(task.isPassiveTarget) }
+    var targetTimeframe by remember { mutableStateOf(task.targetTimeframe) }
+
+    // Linking target field
+    var linkedTargetId by remember { mutableStateOf(task.linkedTargetId) }
+
+    // Get incomplete targets for linking
+    val targetTasksList = remember(tasks) {
+        tasks.filter { it.section == "target" && !it.isCompleted && !it.isPrivate && it.id != task.id }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -711,28 +814,161 @@ fun EditTaskDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf("mini" to "Mini Today", "daily" to "Daily Habit", "target" to "Long Target").forEach { (value, label) ->
+                        listOf(
+                            null to "None (Inbox)",
+                            "mini" to "Mini Today",
+                            "daily" to "Daily Habit",
+                            "target" to "Long Target"
+                        ).forEach { (value, label) ->
                             FilterChip(
                                 selected = section == value,
-                                onClick = { section = if (section == value) null else value },
+                                onClick = { section = value },
                                 label = { Text(label) }
                             )
                         }
                     }
                 }
 
+                // Conditionally render Target Config if section is target
+                if (section == "target") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Target Configuration",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Passive Target", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                Text("No daily routines needed, just an end timeframe goal", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = isPassiveTarget, onCheckedChange = { isPassiveTarget = it })
+                        }
+
+                        Text("Achieve within timeframe:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                null to "General",
+                                "week" to "This Week",
+                                "month" to "This Month",
+                                "year" to "This Year"
+                            ).forEach { (value, label) ->
+                                FilterChip(
+                                    selected = targetTimeframe == value,
+                                    onClick = { targetTimeframe = value },
+                                    label = { Text(label) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Conditionally render Linking selector if section is mini or daily
+                if ((section == "daily" || section == "mini") && targetTasksList.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Link to Long-Term Target (Goal)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilterChip(
+                                selected = linkedTargetId == null,
+                                onClick = { linkedTargetId = null },
+                                label = { Text("None") }
+                            )
+                            targetTasksList.forEach { target ->
+                                FilterChip(
+                                    selected = linkedTargetId == target.id,
+                                    onClick = { linkedTargetId = target.id },
+                                    label = { Text(target.title) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 3-Way Security & Visibility selection
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Visibility & Security Type",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(
+                            "public" to Icons.Default.Visibility to "Public (On Home)",
+                            "hidden" to Icons.Default.VisibilityOff to "Stored Only (Hide)",
+                            "private" to Icons.Default.Lock to "Private Vault"
+                        ).forEach { (pair, label) ->
+                            val (type, icon) = pair
+                            val isSelected = taskType == type
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { taskType = type },
+                                label = { Text(label) },
+                                leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            )
+                        }
+                    }
+                }
+
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isStarred = !isStarred }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Checkbox(checked = showOnHome, onCheckedChange = { showOnHome = it })
-                        Text("Show Home", style = MaterialTheme.typography.bodySmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text("Star/Pin", style = MaterialTheme.typography.bodyMedium)
+                            Text("Highlight at top of lists", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Checkbox(checked = isPrivate, onCheckedChange = { isPrivate = it })
-                        Text("Private", style = MaterialTheme.typography.bodySmall)
-                    }
+                    Switch(checked = isStarred, onCheckedChange = { isStarred = it })
                 }
 
                 OutlinedTextField(
@@ -763,15 +999,20 @@ fun EditTaskDialog(
                         Button(
                             onClick = {
                                 if (title.isNotBlank()) {
+                                    val showHome = taskType == "public"
+                                    val isPrivate = taskType == "private"
                                     onSave(
                                         task.copy(
                                             title = title,
                                             notes = notes,
                                             categoryId = categoryId,
                                             section = section,
-                                            showOnHome = showOnHome,
+                                            showOnHome = showHome,
                                             isPrivate = isPrivate,
-                                            isStarred = isStarred
+                                            isStarred = isStarred,
+                                            linkedTargetId = if (section == "daily" || section == "mini") linkedTargetId else null,
+                                            isPassiveTarget = if (section == "target") isPassiveTarget else false,
+                                            targetTimeframe = if (section == "target") targetTimeframe else null
                                         )
                                     )
                                 }
